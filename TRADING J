@@ -1,0 +1,545 @@
+import React, { useState, useEffect } from 'react';
+import { TrendingUp, TrendingDown, DollarSign, Calendar, BarChart3, PieChart, AlertCircle, Plus, X, Edit2, Trash2, Download, Target, Brain } from 'lucide-react';
+
+const TradingJournal = () => {
+  const [trades, setTrades] = useState([]);
+  const [showAddTrade, setShowAddTrade] = useState(false);
+  const [editingTrade, setEditingTrade] = useState(null);
+  
+  const [newTrade, setNewTrade] = useState({
+    date: new Date().toISOString().split('T')[0],
+    symbol: '',
+    type: 'Long',
+    entry: '',
+    exit: '',
+    size: '',
+    pnl: '',
+    outcome: 'Win',
+    strategy: '',
+    notes: '',
+    emotion: 'Confident'
+  });
+
+  // Load trades from localStorage on mount
+  useEffect(() => {
+    const savedTrades = localStorage.getItem('tradingJournalTrades');
+    if (savedTrades) {
+      setTrades(JSON.parse(savedTrades));
+    } else {
+      // Sample data for first-time users
+      const sampleTrades = [
+        {
+          id: 1,
+          date: '2025-11-10',
+          symbol: 'BTC/USD',
+          type: 'Long',
+          entry: 44500,
+          exit: 45200,
+          size: 0.5,
+          pnl: 350,
+          outcome: 'Win',
+          strategy: 'Breakout',
+          notes: 'Clean breakout above resistance',
+          emotion: 'Confident'
+        },
+        {
+          id: 2,
+          date: '2025-11-11',
+          symbol: 'ETH/USD',
+          type: 'Short',
+          entry: 2450,
+          exit: 2480,
+          size: 2,
+          pnl: -60,
+          outcome: 'Loss',
+          strategy: 'Reversal',
+          notes: 'Entered too early, stop hit',
+          emotion: 'FOMO'
+        },
+        {
+          id: 3,
+          date: '2025-11-12',
+          symbol: 'BTC/USD',
+          type: 'Long',
+          entry: 45000,
+          exit: 46500,
+          size: 1,
+          pnl: 1500,
+          outcome: 'Win',
+          strategy: 'Trend Following',
+          notes: 'Perfect entry on pullback',
+          emotion: 'Disciplined'
+        }
+      ];
+      setTrades(sampleTrades);
+      localStorage.setItem('tradingJournalTrades', JSON.stringify(sampleTrades));
+    }
+  }, []);
+
+  // Save trades to localStorage whenever they change
+  useEffect(() => {
+    if (trades.length > 0) {
+      localStorage.setItem('tradingJournalTrades', JSON.stringify(trades));
+    }
+  }, [trades]);
+
+  // Calculate Analytics
+  const analytics = {
+    totalTrades: trades.length,
+    wins: trades.filter(t => t.outcome === 'Win').length,
+    losses: trades.filter(t => t.outcome === 'Loss').length,
+    breakeven: trades.filter(t => t.outcome === 'Breakeven').length,
+    totalPnL: trades.reduce((sum, t) => sum + parseFloat(t.pnl || 0), 0),
+    avgWin: trades.filter(t => t.outcome === 'Win').length > 0 
+      ? trades.filter(t => t.outcome === 'Win').reduce((sum, t) => sum + parseFloat(t.pnl), 0) / trades.filter(t => t.outcome === 'Win').length 
+      : 0,
+    avgLoss: trades.filter(t => t.outcome === 'Loss').length > 0
+      ? trades.filter(t => t.outcome === 'Loss').reduce((sum, t) => sum + parseFloat(t.pnl), 0) / trades.filter(t => t.outcome === 'Loss').length
+      : 0,
+    winRate: trades.length > 0 ? (trades.filter(t => t.outcome === 'Win').length / trades.length * 100) : 0,
+    bestTrade: trades.length > 0 ? Math.max(...trades.map(t => parseFloat(t.pnl))) : 0,
+    worstTrade: trades.length > 0 ? Math.min(...trades.map(t => parseFloat(t.pnl))) : 0,
+    longTrades: trades.filter(t => t.type === 'Long').length,
+    shortTrades: trades.filter(t => t.type === 'Short').length
+  };
+
+  // Strategy Performance
+  const strategyStats = {};
+  trades.forEach(trade => {
+    if (!strategyStats[trade.strategy]) {
+      strategyStats[trade.strategy] = { wins: 0, losses: 0, pnl: 0 };
+    }
+    if (trade.outcome === 'Win') strategyStats[trade.strategy].wins++;
+    if (trade.outcome === 'Loss') strategyStats[trade.strategy].losses++;
+    strategyStats[trade.strategy].pnl += parseFloat(trade.pnl);
+  });
+
+  // Emotion Analysis
+  const emotionStats = {};
+  trades.forEach(trade => {
+    if (!emotionStats[trade.emotion]) {
+      emotionStats[trade.emotion] = { wins: 0, losses: 0, total: 0 };
+    }
+    emotionStats[trade.emotion].total++;
+    if (trade.outcome === 'Win') emotionStats[trade.emotion].wins++;
+    if (trade.outcome === 'Loss') emotionStats[trade.emotion].losses++;
+  });
+
+  const handleAddTrade = () => {
+    if (!newTrade.symbol || !newTrade.entry || !newTrade.exit || !newTrade.pnl) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    const trade = {
+      ...newTrade,
+      id: Date.now(),
+      entry: parseFloat(newTrade.entry),
+      exit: parseFloat(newTrade.exit),
+      size: parseFloat(newTrade.size),
+      pnl: parseFloat(newTrade.pnl)
+    };
+
+    if (editingTrade) {
+      setTrades(trades.map(t => t.id === editingTrade.id ? { ...trade, id: editingTrade.id } : t));
+      setEditingTrade(null);
+    } else {
+      setTrades([...trades, trade]);
+    }
+
+    setNewTrade({
+      date: new Date().toISOString().split('T')[0],
+      symbol: '',
+      type: 'Long',
+      entry: '',
+      exit: '',
+      size: '',
+      pnl: '',
+      outcome: 'Win',
+      strategy: '',
+      notes: '',
+      emotion: 'Confident'
+    });
+    setShowAddTrade(false);
+  };
+
+  const handleEdit = (trade) => {
+    setEditingTrade(trade);
+    setNewTrade(trade);
+    setShowAddTrade(true);
+  };
+
+  const handleDelete = (id) => {
+    if (confirm('Are you sure you want to delete this trade?')) {
+      setTrades(trades.filter(t => t.id !== id));
+    }
+  };
+
+  const exportData = () => {
+    const csv = [
+      ['Date', 'Symbol', 'Type', 'Entry', 'Exit', 'Size', 'P&L', 'Outcome', 'Strategy', 'Emotion', 'Notes'],
+      ...trades.map(t => [t.date, t.symbol, t.type, t.entry, t.exit, t.size, t.pnl, t.outcome, t.strategy, t.emotion, t.notes])
+    ].map(row => row.join(',')).join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'trading_journal.csv';
+    a.click();
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-6 flex justify-between items-center">
+          <div>
+            <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
+              <BarChart3 className="w-10 h-10 text-blue-400" />
+              Trading Journal & Analytics
+            </h1>
+            <p className="text-slate-400">Track, Analyze, and Improve Your Trading Performance</p>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={exportData}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition"
+            >
+              <Download className="w-5 h-5" />
+              Export CSV
+            </button>
+            <button
+              onClick={() => { setShowAddTrade(true); setEditingTrade(null); }}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition"
+            >
+              <Plus className="w-5 h-5" />
+              Add Trade
+            </button>
+          </div>
+        </div>
+
+        {/* Analytics Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-xl p-6 shadow-lg">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-green-100 text-sm">Total P&L</span>
+              <DollarSign className="w-5 h-5 text-green-200" />
+            </div>
+            <div className="text-3xl font-bold text-white">${analytics.totalPnL.toFixed(2)}</div>
+            <div className="text-sm text-green-100 mt-2">{analytics.totalTrades} Total Trades</div>
+          </div>
+
+          <div className="bg-slate-800 rounded-xl p-6 shadow-lg border border-slate-700">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-slate-400 text-sm">Win Rate</span>
+              <Target className="w-5 h-5 text-blue-500" />
+            </div>
+            <div className="text-3xl font-bold text-white">{analytics.winRate.toFixed(1)}%</div>
+            <div className="text-sm text-slate-400 mt-2">{analytics.wins}W / {analytics.losses}L</div>
+          </div>
+
+          <div className="bg-slate-800 rounded-xl p-6 shadow-lg border border-slate-700">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-slate-400 text-sm">Avg Win</span>
+              <TrendingUp className="w-5 h-5 text-green-500" />
+            </div>
+            <div className="text-3xl font-bold text-green-400">${analytics.avgWin.toFixed(2)}</div>
+            <div className="text-sm text-slate-400 mt-2">Best: ${analytics.bestTrade.toFixed(2)}</div>
+          </div>
+
+          <div className="bg-slate-800 rounded-xl p-6 shadow-lg border border-slate-700">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-slate-400 text-sm">Avg Loss</span>
+              <TrendingDown className="w-5 h-5 text-red-500" />
+            </div>
+            <div className="text-3xl font-bold text-red-400">${analytics.avgLoss.toFixed(2)}</div>
+            <div className="text-sm text-slate-400 mt-2">Worst: ${analytics.worstTrade.toFixed(2)}</div>
+          </div>
+        </div>
+
+        {/* AI Insights */}
+        <div className="bg-gradient-to-r from-purple-900/50 to-blue-900/50 rounded-xl p-6 mb-6 border border-purple-500/30">
+          <div className="flex items-start gap-3">
+            <Brain className="w-6 h-6 text-purple-400 mt-1" />
+            <div>
+              <h3 className="text-white font-semibold text-lg mb-2">AI-Powered Insights</h3>
+              <div className="space-y-2 text-slate-300 text-sm">
+                <p>✅ Your win rate of {analytics.winRate.toFixed(1)}% is {analytics.winRate >= 50 ? 'above' : 'below'} the 50% benchmark. {analytics.winRate >= 50 ? 'Great job!' : 'Focus on trade quality over quantity.'}</p>
+                <p>📊 Risk/Reward Ratio: {analytics.avgWin > 0 && analytics.avgLoss < 0 ? `${(Math.abs(analytics.avgWin / analytics.avgLoss)).toFixed(2)}:1` : 'N/A'} - {analytics.avgWin > Math.abs(analytics.avgLoss) ? 'Excellent! Your wins outweigh losses.' : 'Consider improving your R:R ratio.'}</p>
+                <p>🎯 You're taking {analytics.longTrades > analytics.shortTrades ? 'more Long' : 'more Short'} positions ({analytics.longTrades} vs {analytics.shortTrades}). Ensure this aligns with market conditions.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Strategy & Emotion Analysis */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          {/* Strategy Performance */}
+          <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+            <h3 className="text-white font-semibold text-lg mb-4 flex items-center gap-2">
+              <PieChart className="w-5 h-5 text-blue-400" />
+              Strategy Performance
+            </h3>
+            <div className="space-y-3">
+              {Object.entries(strategyStats).map(([strategy, stats]) => (
+                <div key={strategy} className="bg-slate-700/50 rounded-lg p-3">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-white font-medium">{strategy}</span>
+                    <span className={`font-bold ${stats.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      ${stats.pnl.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm text-slate-400">
+                    <span>{stats.wins}W / {stats.losses}L</span>
+                    <span>{stats.wins + stats.losses > 0 ? ((stats.wins / (stats.wins + stats.losses)) * 100).toFixed(0) : 0}% Win Rate</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Emotion Analysis */}
+          <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+            <h3 className="text-white font-semibold text-lg mb-4 flex items-center gap-2">
+              <Brain className="w-5 h-5 text-purple-400" />
+              Emotional Trading Detector
+            </h3>
+            <div className="space-y-3">
+              {Object.entries(emotionStats).map(([emotion, stats]) => {
+                const winRate = (stats.wins / stats.total * 100).toFixed(0);
+                return (
+                  <div key={emotion} className="bg-slate-700/50 rounded-lg p-3">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-white font-medium">{emotion}</span>
+                      <span className={`font-bold ${winRate >= 50 ? 'text-green-400' : 'text-red-400'}`}>
+                        {winRate}% Win Rate
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm text-slate-400">
+                      <span>{stats.wins}W / {stats.losses}L</span>
+                      <span>{stats.total} trades</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Trade Log */}
+        <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+          <h3 className="text-white font-semibold text-lg mb-4">Trade Log</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-700">
+                  <th className="text-left text-slate-400 p-3">Date</th>
+                  <th className="text-left text-slate-400 p-3">Symbol</th>
+                  <th className="text-left text-slate-400 p-3">Type</th>
+                  <th className="text-right text-slate-400 p-3">Entry</th>
+                  <th className="text-right text-slate-400 p-3">Exit</th>
+                  <th className="text-right text-slate-400 p-3">P&L</th>
+                  <th className="text-left text-slate-400 p-3">Strategy</th>
+                  <th className="text-left text-slate-400 p-3">Emotion</th>
+                  <th className="text-center text-slate-400 p-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trades.map(trade => (
+                  <tr key={trade.id} className="border-b border-slate-700/50 hover:bg-slate-700/30">
+                    <td className="text-white p-3">{trade.date}</td>
+                    <td className="text-white p-3 font-medium">{trade.symbol}</td>
+                    <td className="p-3">
+                      <span className={`px-2 py-1 rounded text-xs ${trade.type === 'Long' ? 'bg-green-900/50 text-green-300' : 'bg-red-900/50 text-red-300'}`}>
+                        {trade.type}
+                      </span>
+                    </td>
+                    <td className="text-white p-3 text-right">${trade.entry}</td>
+                    <td className="text-white p-3 text-right">${trade.exit}</td>
+                    <td className={`p-3 text-right font-bold ${trade.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      ${trade.pnl.toFixed(2)}
+                    </td>
+                    <td className="text-slate-300 p-3">{trade.strategy}</td>
+                    <td className="text-slate-300 p-3">{trade.emotion}</td>
+                    <td className="p-3">
+                      <div className="flex gap-2 justify-center">
+                        <button onClick={() => handleEdit(trade)} className="text-blue-400 hover:text-blue-300">
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDelete(trade.id)} className="text-red-400 hover:text-red-300">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Add Trade Modal */}
+        {showAddTrade && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+            <div className="bg-slate-800 rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-slate-700">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-white font-semibold text-xl">{editingTrade ? 'Edit Trade' : 'Add New Trade'}</h3>
+                <button onClick={() => { setShowAddTrade(false); setEditingTrade(null); }} className="text-slate-400 hover:text-white">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-slate-400 text-sm block mb-1">Date</label>
+                  <input
+                    type="date"
+                    value={newTrade.date}
+                    onChange={(e) => setNewTrade({ ...newTrade, date: e.target.value })}
+                    className="w-full bg-slate-700 text-white px-3 py-2 rounded-lg border border-slate-600 focus:border-blue-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-400 text-sm block mb-1">Symbol</label>
+                  <input
+                    type="text"
+                    value={newTrade.symbol}
+                    onChange={(e) => setNewTrade({ ...newTrade, symbol: e.target.value })}
+                    placeholder="e.g., BTC/USD"
+                    className="w-full bg-slate-700 text-white px-3 py-2 rounded-lg border border-slate-600 focus:border-blue-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-400 text-sm block mb-1">Type</label>
+                  <select
+                    value={newTrade.type}
+                    onChange={(e) => setNewTrade({ ...newTrade, type: e.target.value })}
+                    className="w-full bg-slate-700 text-white px-3 py-2 rounded-lg border border-slate-600 focus:border-blue-500 outline-none"
+                  >
+                    <option>Long</option>
+                    <option>Short</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-slate-400 text-sm block mb-1">Outcome</label>
+                  <select
+                    value={newTrade.outcome}
+                    onChange={(e) => setNewTrade({ ...newTrade, outcome: e.target.value })}
+                    className="w-full bg-slate-700 text-white px-3 py-2 rounded-lg border border-slate-600 focus:border-blue-500 outline-none"
+                  >
+                    <option>Win</option>
+                    <option>Loss</option>
+                    <option>Breakeven</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-slate-400 text-sm block mb-1">Entry Price</label>
+                  <input
+                    type="number"
+                    value={newTrade.entry}
+                    onChange={(e) => setNewTrade({ ...newTrade, entry: e.target.value })}
+                    placeholder="0.00"
+                    className="w-full bg-slate-700 text-white px-3 py-2 rounded-lg border border-slate-600 focus:border-blue-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-400 text-sm block mb-1">Exit Price</label>
+                  <input
+                    type="number"
+                    value={newTrade.exit}
+                    onChange={(e) => setNewTrade({ ...newTrade, exit: e.target.value })}
+                    placeholder="0.00"
+                    className="w-full bg-slate-700 text-white px-3 py-2 rounded-lg border border-slate-600 focus:border-blue-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-400 text-sm block mb-1">Position Size</label>
+                  <input
+                    type="number"
+                    value={newTrade.size}
+                    onChange={(e) => setNewTrade({ ...newTrade, size: e.target.value })}
+                    placeholder="0.00"
+                    className="w-full bg-slate-700 text-white px-3 py-2 rounded-lg border border-slate-600 focus:border-blue-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-400 text-sm block mb-1">P&L ($)</label>
+                  <input
+                    type="number"
+                    value={newTrade.pnl}
+                    onChange={(e) => setNewTrade({ ...newTrade, pnl: e.target.value })}
+                    placeholder="0.00"
+                    className="w-full bg-slate-700 text-white px-3 py-2 rounded-lg border border-slate-600 focus:border-blue-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-400 text-sm block mb-1">Strategy</label>
+                  <input
+                    type="text"
+                    value={newTrade.strategy}
+                    onChange={(e) => setNewTrade({ ...newTrade, strategy: e.target.value })}
+                    placeholder="e.g., Breakout"
+                    className="w-full bg-slate-700 text-white px-3 py-2 rounded-lg border border-slate-600 focus:border-blue-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-400 text-sm block mb-1">Emotion</label>
+                  <select
+                    value={newTrade.emotion}
+                    onChange={(e) => setNewTrade({ ...newTrade, emotion: e.target.value })}
+                    className="w-full bg-slate-700 text-white px-3 py-2 rounded-lg border border-slate-600 focus:border-blue-500 outline-none"
+                  >
+                    <option>Confident</option>
+                    <option>Disciplined</option>
+                    <option>Fearful</option>
+                    <option>FOMO</option>
+                    <option>Revenge Trading</option>
+                    <option>Greedy</option>
+                  </select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="text-slate-400 text-sm block mb-1">Notes</label>
+                  <textarea
+                    value={newTrade.notes}
+                    onChange={(e) => setNewTrade({ ...newTrade, notes: e.target.value })}
+                    placeholder="What went well? What could be improved?"
+                    rows="3"
+                    className="w-full bg-slate-700 text-white px-3 py-2 rounded-lg border border-slate-600 focus:border-blue-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={handleAddTrade}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition"
+                >
+                  {editingTrade ? 'Update Trade' : 'Add Trade'}
+                </button>
+                <button
+                  onClick={() => { setShowAddTrade(false); setEditingTrade(null); }}
+                  className="flex-1 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg font-medium transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default TradingJournal;
